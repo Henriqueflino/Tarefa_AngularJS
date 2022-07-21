@@ -1,47 +1,58 @@
-angular.module("listaTelefonica").controller("listaTelefonicaController", function($scope, contatosAPI, operadorasAPI)
-            {
-                $scope.app = "Lista Telefonica";
-                $scope.contatos = []
-                $scope.operadoras = []
+angular.module("listaTelefonica").controller("listaTelefonicaCtrl", function ($scope, contatos, operadoras, serialGenerator, $filter) {
+	$scope.app = $filter('upper')("Lista Telefonica");
+	$scope.contatos = contatos.data;
+	$scope.operadoras = operadoras.data;
 
-                var carregaContatos = function(){
-                    contatosAPI.getContatos().then(function (response) {
-                        $scope.contatos = response.data;
-                        
-                    }).catch(function(){
-                        $scope.error = "Não foi possivel carregar os dados!"
-                    });
-                }
+	var init = function () {
+		calcularImpostos($scope.contatos);
+		generateSerial($scope.contatos);
+	};
 
-                var carregaOperadoras = function(){
-                    operadorasAPI.getOperadoras().then(function (response){
-                        $scope.operadoras = response.data;
-                    });
-                }
+	var calcularImpostos = function (contatos) {
+		contatos.forEach(function (contato) {
+			contato.operadora.precoComImposto = calcularImposto(contato.operadora.preco);
+		});
+	};
 
-                $scope.adicionarContato = function(contato){
-                    contato.data = new Date();
-                   contatosAPI.saveContato(contato).then(function(response){
-                    delete $scope.contato;
-                    $scope.contatoForm.$setPristine();
-                    carregaContatos();
-                   });
-                }
-                $scope.apagarContatos = function(contatos){
-                   $scope.contatos = contatos.filter(function(contato){
-                        if (!contato.selecionado) return contato;
-                    });
-                }
-                $scope.isContatoSelecionado = function(contatos){
-                    return contatos.some(function(contato){
-                        return contato.selecionado;
-                    });
-                }
-                $scope.ordenarPor = function(campo){
-                    $scope.criterioDeOrdencao = campo;
-                    $scope.direcaoDaOrdenacao = !$scope.direcaoDaOrdenacao;
-                };
+	var generateSerial = function (contatos) {
+		contatos.forEach(function (item) {
+			item.serial = serialGenerator.generate();
+		});
+	};
 
-                carregaContatos();
-                carregaOperadoras();
-            });
+	$scope.adicionarContato = function(contato){
+		contato.serial = serialGenerator.generate();
+		contato.data = new Date();
+		contatosAPI.saveContato(contato).then(function(response){
+		delete $scope.contato;
+		$scope.contatoForm.$setPristine();
+	   });
+	};
+
+	$scope.apagarContatos = function (contatos) {
+		$scope.contatos = contatos.filter(function (contato) {
+			if (!contato.selecionado) return contato;
+		});
+		$scope.verificarContatoSelecionado($scope.contatos);
+	};
+	$scope.verificarContatoSelecionado = function (contatos) {
+		$scope.hasContatoSelecionado = contatos.some(function (contato) {
+			return contato.selecionado;
+		});
+	};
+	$scope.ordenarPor = function (campo) {
+		$scope.criterioDeOrdenacao = campo;
+		$scope.direcaoDaOrdenacao = !$scope.direcaoDaOrdenacao;
+	};
+
+	var calcularImposto = function (preco) {
+		var imposto = 1.2;
+		return preco * imposto;
+	};
+
+	$scope.reset = function () {
+		$scope.contatos = angular.copy($scope.contatos);
+	};
+	
+	init();
+});
